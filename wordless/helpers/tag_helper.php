@@ -1,78 +1,116 @@
 <?php
+/**
+ * TagHelper
+ *
+ * Provides methods to generate HTML tags programmatically when you can't use a Builder.
+ * @package Wordless
+ */
+class TagHelper {
 
-function include_stylesheet($url) {
-  if (!preg_match("/\.css$/", $url)) $url .= ".css";
-  if (!preg_match("/^http:\/\//", $url)) $url = asset_url($url);
-  return '<link href="' . $url . '" media="all" rel="stylesheet" type="text/css" />';
-}
+  private function tag_options($options, $prefix = "") {
 
-function include_javascript($url) {
-  if (!preg_match("/^http:\/\//", $url)) {
-    $url = asset_url($url);
-    if (!preg_match("/.js$/", $url)) $url .= ".js";
-  }
-  return '<script src="' . $url . '" type="text/javascript"></script>';
-}
-
-function rss_link($title, $url) {
-  return '<link href="' . $url . '" rel="alternate" title="' . $title . '" type="application/rss+xml" />';
-}
-
-function option_tag($text, $name, $value, $selected) {
-  if (is_wp_error($value)) {
-    return print_r($value);
-  }
-  return "<option name='$name' value='$value' " . ($selected ? "selected='selected'" : "") . ">$text</option>";
-}
-
-function link_to($text = '', $link = '', $class = '') {
-  if (!is_string($text)) {
-    $text = "Testo non disponibile";
-  }
-  if (!is_string($link)) {
-    $link = "#link_not_available";
-  }
-  if (is_array($class)) {
     $attributes = array();
-    foreach ($class as $attribute => $value) {
-      $attributes[] = "$attribute = '$value'";
+    $html_content = array();
+
+    if (is_array($options)) {
+
+      foreach ($options as $option_key => $option_value) {
+
+        if (is_array($option_value)){
+          if($option_key == "data"){
+            $attributes[] = $this->tag_options($option_value, $option_key . "-");
+          } else {
+            $html_content[] = $prefix . $option_key . "=" . "\"". addslashes(json_encode($option_value)) . "\"";
+          }
+        } else {
+          if (is_null($option_value) || (empty($option_value)) || ($option_value == $option_key)) {
+            $html_content[] = $prefix . $option_key;
+          } elseif(is_bool($option_value) && ($option_value == true)) {
+            $html_content[] = $prefix . $option_key . "=" . "\"". $prefix . $option_key . "\"";
+          } else {
+            $html_content[] = $prefix . $option_key . "=" . "\"". $option_value . "\"";
+          }
+        }
+      }
+    } else {
+      //We have only a simple string and not an array
+      $html_content[] = $options;
     }
-    $class = join(" ", $attributes);
-  } else {
-    $class = " class='$class'";
+
+    return join(" ", $html_content);
   }
-  return "<a href='$link'$class>$text</a>";
+
+  function content_tag($name, $content, $options = NULL, $escape = false) {
+
+    if (is_null($content)){
+      $html_content = "<" . $name;
+      if(!is_null($options) && $attrs = $this->tag_options($options)){
+        $html_content .= " " . $attrs;
+      }
+      $html_content .= "/>";
+    } else {
+      $html_content = "<" . $name;
+      if(!is_null($options) && $attrs = $this->tag_options($options)){
+        $html_content .= " " . $attrs;
+      }
+      $html_content .= ">";
+      $html_content .= ((bool) $escape) ? htmlentities($content) : $content;
+      $html_content .= "</" . $name . ">";
+    }
+
+    return $html_content;
+  }
+
+  function option_tag($text, $name, $value, $selected = NULL) {
+    $options = array(
+      "name"  => $name,
+      "value" => $value
+    );
+
+    if ($selected) {
+      $options["selected"] = true;
+    }
+
+    return $this->content_tag("option", $text, $options);
+  }
+
+  function link_to($text = '', $link = NULL, $attributes = NULL) {
+    if (!is_string($link)) {
+      $link = "#";
+    }
+
+    $options = array("href" => $link);
+    if (is_array($attributes)){
+      $options = array_merge($options, $attributes);
+    }
+
+    return $this->content_tag("a", $text, $options);
+  }
+
+
+  function content_type_meta_tag($content = NULL) {
+
+    $content = $content ? $content : get_bloginfo('html_type') . '; ' . 'charset=' . get_bloginfo('charset');
+
+    $attrs = array(
+      "http-equiv" => "Content-type",
+      "content"    => $content
+    );
+
+    return content_tag("meta", NULL, $attrs);
+  }
+
+  function title_tag($title = NULL, $attributes = array()) {
+    $title = $title ? $title : get_page_title();
+    return content_tag("title", $title, $attributes);
+  }
+
+  function pingback_link_tag($url = NULL) {
+    $url = $url ? $url : get_bloginfo('pingback_url');
+    $attributes = array("href" => $url);
+    return content_tag("link", NULL, $attributes);
+  }
+
 }
 
-function image_tag($img) {
-  if (!preg_match("/^http/", $img)) {
-    $img = public_url("images/$img");
-  }
-  return "<img src='$img' alt=''/>";
-}
-
-function active_if($active_check) {
-  return $active_check ? "active" : "inactive";
-}
-
-function get_page_title($prefix = "", $separator = "") {
-  $title = "";
-  if (is_category()) {
-    $category = get_category(get_query_var('cat'),false);
-    $title = get_cat_name($category->cat_ID);
-  }
-  if (is_post_type_archive()) {
-    $title = get_post_type_singular_name();
-  }
-  if (is_single() || is_page()) {
-    $title = get_the_title();
-  }
-  if (is_search()) {
-    $title = "Ricerca";
-  }
-  if (is_front_page()) {
-    return $prefix;
-  }
-  return "$prefix$separator$title";
-}
-
+Wordless::register_helper("TagHelper");
