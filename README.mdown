@@ -5,8 +5,9 @@ Wordless is an opinionated WordPress plugin that dramatically speeds up and enha
 * A structured, organized and clean [theme organization](https://github.com/welaika/wordless/tree/master/wordless/theme_builder/vanilla_theme) (taken directly from Rails);
 * The ability to create a new theme skeleton directly within the WordPress backend interface;
 * The ability to write PHP code using the beautiful [Haml templating system](http://haml-lang.com/);
-* The ability to write CSS stylesheets using the awesome [Sass syntax](sass-lang.com) and the [Compass framework](http://compass-style.org/);
+* The ability to write CSS stylesheets using the awesome [Sass syntax](http://sass-lang.com) and the [Compass framework](http://compass-style.org/);
 * The ability to write Javascript logic in [Coffeescript](http://jashkenas.github.com/coffee-script/);
+* The ability to merge and compress Javascript assets using [Yahoo YUI Compressor](http://developer.yahoo.com/yui/compressor/);
 * A growing set of handy and documented helper functions ready to be used within your views;
 
 [![Build Status](https://secure.travis-ci.org/welaika/wordless.png)](http://travis-ci.org/welaika/wordless)
@@ -41,7 +42,7 @@ Whew, now you have a fully functional Ruby environment! The following oneliner w
 wordless needs and create some handy symbolic links:
 
 ```
-rvm use 1.8.7@wordless --create --default && gem install therubyracer sprockets compass coffee-script && rvm wrapper 1.8.7@wordless wordless compass ruby
+rvm use 1.8.7@wordless --create --default && gem install therubyracer sprockets compass coffee-script thor yui-compressor && rvm wrapper 1.8.7@wordless wordless compass ruby
 ```
 Now you should be able to know the location of your RVM-wrapped ruby executables typing `which wordless_ruby` and `which wordless_compass` on your terminal.
 
@@ -52,9 +53,9 @@ Okay, now we can get everything up and running :)
 
 1. The production server doesn't need any extra-dependencies, as all the assets get pre-compiled by Wordless on the development machine and then statically served;
 2. Enable Apache `mod_rewrite` module (`a2enmod rewrite`) and make sure WordPress nice permalinks are enabled under the WP "Settings > Permalinks" section (for example, choose `month and name`);
-3. [Download the Wordless plugin](https://github.com/welaika/wordless/zipball/master), drop it in the `wp-content/plugins` directory and enable it from the WP "Plugins" section;
+3. [Download the Wordless plugin](https://github.com/welaika/wordless/zipball/master), drop it in the `wp-content/plugins` directory (be sure its directory is named 'wordless') and enable it from the WP "Plugins" section;
 4. Create a brand new Wordless theme directly within the WP backend, from the WP "Appearance > New Wordless Theme" section;
-5. Specify the path of the `compass` and `ruby` executables within the `config/initializers/wordless_preferences.php` config file.
+5. Configure the path of your `compass` and `ruby` executables within the `config/initializers/wordless_preferences.php` config file.
 
 <a name="theme-anatomy"></a>
 ## Wordless Theme anatomy
@@ -62,21 +63,21 @@ Okay, now we can get everything up and running :)
 That's a typical [Wordless theme directory structure](https://github.com/welaika/wordless/tree/master/wordless/theme_builder/vanilla_theme):
 
 	your_theme_dir
+	├── assets
+	│   ├── fonts
+	│   ├── images
+	│   ├── javascripts
+	│   └── stylesheets
 	├── config
 	│   ├── initializers
 	│   └── locales
-	├── public
-	│   ├── assets
-	│   │   ├── javascripts
-	│   │   └── stylesheets
-	│   └── images
 	├── theme
 	│   ├── assets
 	│   │   ├── javascripts
 	│   │   └── stylesheets
 	│   ├── helpers
 	│   └── views
-    │       └── layouts
+	│       └── layouts
 	└── index.php
 
 Let's see in detail what is the purpose of all those directories:
@@ -99,9 +100,9 @@ if (is_front_page()) {
 ```
 As you can see, you first determine the type of the page using [WordPress conditional tags](http://codex.wordpress.org/Conditional_Tags), and then delegate the rendering to some particular view.
 
-### Theme Views (`theme/views/*.haml`)
+### Theme Views (`theme/views/*.haml` or `theme/views/*.php`)
 
-That's the directory where you'll find yourself coding for most of the time. Here you can create a view for each main page of your theme, using Haml syntax.
+That's the directory where you'll find yourself coding for most of the time. Here you can create a view for each main page of your theme, using Haml syntax or plain PHP.
 Feel free to create subdirectories to group toghether the files. Here's what could be an example for the typical [WordPress loop](http://codex.wordpress.org/The_Loop) in an archive page:
 
 ```haml
@@ -117,7 +118,7 @@ Feel free to create subdirectories to group toghether the files. Here's what cou
 .content= get_the_filtered_content()
 ```
 
-Wordless uses [Phamlp](http://code.google.com/p/phamlp/) for your views, a great PHP port of the Haml ruby gem. In this little snippet, please note the following:
+Wordless uses [Phamlp](http://code.google.com/p/phamlp/) for your Haml views, a great PHP port of the Haml ruby gem. In this little snippet, please note the following:
 
 * The view is delegating some rendering work to a partial called `_single.haml`. Partial templates – usually just called “partials” – are another device for breaking the rendering process into more manageable chunks. Partials are named with a leading underscore to distinguish them from regular views, even though they are referred to without the underscore.
 * There's no layout here, just content: the layout of the page is stored in a secondary file, placed in the `theme/views/layouts` directory;
@@ -149,8 +150,7 @@ Just like Rails, when Wordless renders a view as a response, it does so by combi
     = render_partial("common/header")
     = yield()
     = render_partial("common/footer")
-    = javascript_include_tag("jquery")
-	= javascript_include_tag("application")
+    = javascript_include_tag("jquery", "application")
 ```
 
 Please note that for content that is shared among all pages in your application, you can use partials directly from layouts.
@@ -158,7 +158,7 @@ Please note that for content that is shared among all pages in your application,
 <a name="helpers"></a>
 ### Helpers (`theme/helpers/*.php` files)
 
-Helpers are basically small functions that can be called in your views to help keep your code stay DRY. Create as many helper files and functions as you want and put them in this directory, they will all be required within your views, together with the [default Wordless helpers](https://github.com/welaika/wordless/tree/master/wordless/helpers). These are just a small subset of all the 40+ helpers Wordless gives you for free:
+Helpers are basically small functions that can be called in your views to help keep your code stay DRY. Create as many helper files and functions as you want and put them in this directory, they will all be required within your views, together with the [default Wordless helpers](https://github.com/welaika/wordless/tree/master/wordless/helpers). These are just a small subset of all the 40+ tested and documented helpers Wordless gives you for free:
 
 * `lorem()` - A "lorem ipsum" text and HTML generator;
 * `pluralize()` - Attempts to pluralize words;
@@ -184,7 +184,13 @@ These are just some file name examples: you can organize them the way you prefer
 <a name="locales"></a>
 ### Locale files (`config/locales` directory)
 
-Just drop all your theme locale files in this directory. Wordless will take care of calling [`load_theme_textdomain()`](http://codex.wordpress.org/Function_Reference/load_theme_textdomain) for you.
+Just drop all your theme locale files in this directory. Wordless will take care of calling [`load_theme_textdomain()`](http://codex.wordpress.org/Function_Reference/load_theme_textdomain) for you. Note that due to WordPress localization framework, you need to append our domain when using internationalization. For example, using `__()` without the domain specified will not work:
+
+`__("News")`
+
+But using the domain we will make it work:
+
+`__("News", "we")`
 
 <a name="assets"></a>
 ### Assets
@@ -197,7 +203,7 @@ WordPress has to different places where you want to put your assets:
 <a name="stylesheets"></a>
 #### Stylesheets
 
-Include the assets in your Haml views using `stylesheet_link_tag()` helper.
+Include the assets in your views using `stylesheet_link_tag()` helper.
 
 ```haml
 = stylesheet_link_tag("screen")
@@ -216,7 +222,7 @@ To make things faster, Wordless handles nicely precompilation caching, so a new 
 <a name="javascripts"></a>
 #### Javacripts
 
-Include the assets in your Haml views using `javascript_include_tag()` helper.
+Include the assets in your views using `javascript_include_tag()` helper.
 
 ```haml
 = javascript_include_tag("application")

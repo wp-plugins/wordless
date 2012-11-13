@@ -8,6 +8,36 @@
  */
 class AssetTagHelper {
 
+  function AssetTagHelper() {}
+
+  /**
+   * Return the theme version, based on prederence set in Wordless config file.
+   * 
+   * @return string
+   *   The assets version string
+   */
+  protected function get_asset_version_string() {
+    return Wordless::preference('assets.version', NULL);
+  }
+
+  /**
+   * Appends version information to asset source.
+   *
+   * @param string $source
+   *   The path to the asset source.
+   * @return @e string
+   *   The path to the asset source with version information appended to the query string.
+   *
+   * @ingroup helperfunc
+   */
+  function asset_version($source) {
+    $version = $this->get_asset_version_string();
+
+    if (isset($version))
+      $source .= sprintf("?ver=%s", $version);
+    return $source;
+  }
+
   /**
    * Builds a valid \<audio /\> HTML tag.
    *
@@ -100,14 +130,34 @@ class AssetTagHelper {
    *
    * @ingroup helperfunc
    */
-  public function favicon_link_tag($source= "/favicon.ico", $attributes = array()) {
-    $options = array( "rel"  => 'shortcut icon',
-                      "href" => $source,
-                      "type" => 'image/vnd.microsoft.icon');
+  function favicon_link_tag($source = "favicon.ico", $attributes = NULL) {
+    if (!preg_match("/^(https?|\/)/", $source)) {
+      $source = image_url($source);
+    }
 
-    $options = array_merge($options, $attributes);
+    $info = pathinfo($source);
 
-    return content_tag("link", NULL, $options);
+    $mime_types = array(
+      "ico" => "image/vnd.microsoft.icon",
+      "png" => "image/png",
+      "jpeg" => "image/jpeg",
+      "jpg" => "image/jpg"
+    );
+
+    $options = array(
+      "rel"  => "icon",
+      "href" => $source,
+      "type" => $mime_types[strtolower($info['extension'])]
+    );
+
+    if(is_array($attributes)){
+      $options = array_merge($options, $attributes);
+    }
+
+    $output = content_tag("link", NULL, $options);
+    $output .= content_tag("link", NULL, array_merge($options, array("rel" => "shortcut icon")));
+
+    return $output;
   }
 
   /**
@@ -173,7 +223,7 @@ class AssetTagHelper {
     $info = pathinfo($source);
 
     $options = array(
-      "src"  => $source,
+      "src"  => $this->asset_version($source),
       "alt"  => capitalize(basename($source,'.' . $info['extension']))
     );
 
@@ -250,6 +300,7 @@ class AssetTagHelper {
       if (!preg_match("/^https?:\/\//", $source)) {
         $source = stylesheet_url($source);
         if (!preg_match("/\.css$/", $source)) $source .= ".css";
+        $source = $this->asset_version($source);
       }
       $options = array(
         "href"  => $source,
@@ -295,6 +346,7 @@ class AssetTagHelper {
       if (!preg_match("/^https?:\/\//", $source)) {
         $source = javascript_url($source);
         if (!preg_match("/\.js$/", $source)) $source .= ".js";
+        $source = $this->asset_version($source);
       }
       $options = array(
         "src"  => $source,

@@ -18,7 +18,7 @@ class Wordless {
         self::require_helpers();
         self::require_theme_initializers();
         self::register_activation();
-        self::register_preprocessors("SprocketsPreprocessor", "CompassPreprocessor");
+        self::register_preprocessors();
         self::register_preprocessor_actions();
     }
     self::load_admin_page();
@@ -45,7 +45,8 @@ class Wordless {
   }
 
   public static function register_preprocessors() {
-    foreach (func_get_args() as $preprocessor_class) {
+    $preprocessors = self::preference("assets.preprocessors", array("SprocketsPreprocessor", "CompassPreprocessor"));
+    foreach ($preprocessors as $preprocessor_class) {
       self::$preprocessors[] = new $preprocessor_class();
     }
   }
@@ -98,14 +99,72 @@ class Wordless {
       if (array_key_exists($preprocessor->query_var_name(), $wp->query_vars)) {
         $original_url = $wp->query_vars[$preprocessor->query_var_name('original_url')];
         $relative_path = str_replace(preg_replace("/^\//", "", self::theme_url()), '', $original_url);
-        $processed_file_path = Wordless::join_paths(get_template_directory(), $relative_path);
         $relative_path = preg_replace("/^.*\/assets\//", "", $relative_path);
         $to_process_file_path = Wordless::join_paths(self::theme_assets_path(), $relative_path);
         $to_process_file_path = preg_replace("/\." . $preprocessor->to_extension() . "$/", "", $to_process_file_path);
-        $preprocessor->process_file_with_caching($to_process_file_path, $processed_file_path, Wordless::theme_temp_path());
-        exit();
+        $preprocessor->serve_compiled_file($to_process_file_path, Wordless::theme_temp_path());
+        return;
       }
     }
+  }
+
+  public static function compile_assets() {
+    foreach (self::$preprocessors as $preprocessor) {
+      foreach ($preprocessor->supported_extensions() as $extension) {
+        $list_files = self::recursive_glob(self::theme_assets_path(), "*.$extension");
+        foreach ($list_files as $file_path) {
+          // Ignore partials
+          if (!preg_match("/^_/", basename($file_path))) {
+            $compiled_file_path = str_replace(Wordless::theme_assets_path(), '', $file_path);
+            $compiled_file_path = Wordless::join_paths(Wordless::theme_static_assets_path(), $compiled_file_path);
+            $compiled_file_path = preg_replace("/\." . $extension . "$/", ".".$preprocessor->to_extension(), $compiled_file_path);
+
+            try {
+              $to_process_file_path = preg_replace("/\." . $extension . "$/", "", $file_path);
+              $compiled_content = $preprocessor->process_file_with_caching($to_process_file_path, Wordless::theme_temp_path());
+            } catch(WordlessCompileException $e) {
+              echo "Problems compiling $file_path to $compiled_file_path\n\n";
+              echo $e;
+              echo "\n\n";
+            }
+
+            file_put_contents($compiled_file_path, $compiled_content);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Recursively searches inside a directory for specific files.
+   *
+   * * @param string $directory_path
+   *   The path of the directory to search recursively
+   * * @param string $pattern
+   *   The glob pattern of the files (see http://php.net/manual/en/function.glob.php)
+   * * @param int $flags
+   *   The glob search flags (see http://php.net/manual/en/function.glob.php)
+   *
+   */
+  public static function recursive_glob($path, $pattern = '*', $flags = 0) {
+    $files = glob(self::join_paths($path, $pattern), $flags);
+
+    if (!is_array($files)) {
+      $files = array();
+    }
+
+    $paths = glob(self::join_paths($path, '*'), GLOB_ONLYDIR | GLOB_NOSORT);
+
+    if (!empty($paths)) {
+      foreach ($paths as $sub_path) {
+        $subfiles = self::recursive_glob($sub_path, $pattern, $flags);
+        if (is_array($subfiles)) {
+          $files = array_merge($files, $subfiles);
+        }
+      }
+    }
+
+    return $files;
   }
 
   /**
@@ -132,12 +191,12 @@ class Wordless {
   public static function require_helpers() {
     require_once Wordless::join_paths(dirname(__FILE__), "helpers.php");
     $helpers_path = self::theme_helpers_path();
-    self::require_once_dir("$helpers_path");
+    self::require_once_dir($helpers_path);
   }
 
   public static function require_theme_initializers() {
     $initializers_path = self::theme_initializers_path();
-    self::require_once_dir("$initializers_path");
+    self::require_once_dir($initializers_path);
   }
 
   /**
@@ -200,16 +259,20 @@ class Wordless {
     return self::join_paths(get_template_directory(), 'theme/assets/javascripts');
   }
 
+  public static function theme_static_assets_path() {
+    return self::join_paths(get_template_directory(), 'assets');
+  }
+
   public static function theme_static_javascripts_path() {
     return self::join_paths(get_template_directory(), 'assets/javascripts');
   }
 
   public static function theme_temp_path() {
-    return self::join_paths(get_template_directory(), 'tmp');
+    return self::preference("theme.temp_dir", self::join_paths(get_template_directory(), 'tmp'));
   }
 
   public static function theme_url() {
-    return str_replace(home_url(), '', get_bloginfo('template_url'));
+    return parse_url(get_bloginfo('template_url'), PHP_URL_PATH);
   }
 
   public static function join_paths() {

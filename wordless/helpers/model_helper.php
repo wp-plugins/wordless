@@ -1,8 +1,38 @@
 <?php
-
+/**
+ * This module provides methods for handling of WordPress "models" ( Posts and
+ * Taxonomies ), making easy to create new post types or new taxonomies.
+ *
+ * @ingroup helperclass
+ */
 class ModelHelper {
 
-  function new_post_type($name, $supports = array("title", "editor")) {
+  /**
+   * Creates a new post type.
+   *
+   * This function use the WP APIs and functions to register a new post type.
+   *
+   * @param string|array $name
+   *   The name of the new post type (will appear in the backend). If the name
+   *   is a sting, the plural will be evaluated by the system; if is an array,
+   *   must contains the singular and the plural versions of the name.
+   *   Ex:
+   *   @code
+   * $name = array(
+   *   "singular" => 'My custom post type',
+   *   "plural" => 'My custom post types'
+   * );
+   *    @endcode
+   * @param array $supports (optional)
+   *   Extra fields added to this post type. Default fields (the fields you can
+   *   find in page/post type) are added by default.
+   * @param array $options (optional)
+   *   An optional array to override default options passed to 
+   *   register_post_type().
+   *
+   * @ingroup helperfunc
+   */
+  function new_post_type($name, $supports = array("title", "editor"), $options = array()) {
 
     if (!is_array($name)) {
       $name = array(
@@ -11,8 +41,8 @@ class ModelHelper {
       );
     }
 
-    $uc_plural = __(ucwords(preg_replace("/_/", " ", $name["plural"])));
-    $uc_singular = __(ucwords(preg_replace("/_/", " ", $name["singular"])));
+    $uc_plural = __(ucwords(preg_replace("/_/", " ", $name["plural"])), "we");
+    $uc_singular = __(ucwords(preg_replace("/_/", " ", $name["singular"])), "we");
 
     $labels = array(
       'name' => $uc_plural,
@@ -21,16 +51,14 @@ class ModelHelper {
       'edit_item' => sprintf(__("Edit %s", "we"), $uc_singular),
       'new_item' => sprintf(__("New %s", "we"), $uc_singular),
       'view_item' => sprintf(__("View %s", "we"), $uc_singular),
-      'search_items' => sprintf(__("Add new %s", "we"), $uc_plural),
+      'search_items' => sprintf(__("Search %s", "we"), $uc_plural),
       'not_found' => sprintf(__("No %s found.", "we"), $uc_plural),
       'not_found_in_trash' => sprintf(__("No %s found in Trash", "we"), $uc_plural),
       'parent_item_colon' => ',',
       'menu_name' => $uc_plural
     );
 
-    register_post_type(
-      $name["singular"],
-      array(
+    $options = array_merge(array(
         'labels' => $labels,
         'public' => true,
         'publicly_queryable' => true,
@@ -42,11 +70,30 @@ class ModelHelper {
         'hierarchical' => false,
         'menu_position' => null,
         'supports' => $supports
-      )
+      ), $options);
+
+    register_post_type(
+      $name["singular"],
+      $options
     );
   }
 
-  function new_taxonomy($name, $post_types, $hierarchical = true) {
+  /**
+   * Create a new taxonomy.
+   *
+   * @param string $name
+   *   The name of the taxonomy.
+   * @param array|string $post_types
+   *   Name of the object type for the taxonomy object. Object-types can be 
+   *   built-in objects (see below) or any custom post type that may be 
+   *   registered.
+   * @param array $options (optional)
+   *   An optional array to override default options passed to 
+   *   register_taxonomy().
+   *
+   * @ingroup helperfunc
+   */
+  function new_taxonomy($name, $post_types, $options = array()) {
 
     if (!is_array($name)) {
       $name = array(
@@ -55,8 +102,8 @@ class ModelHelper {
       );
     }
 
-    $uc_plural = ucwords(preg_replace("/_/", " ", $name["plural"]));
-    $uc_singular = ucwords(preg_replace("/_/", " ", $name["singular"]));
+    $uc_plural = __(ucwords(preg_replace("/_/", " ", $name["plural"])), "we");
+    $uc_singular = __(ucwords(preg_replace("/_/", " ", $name["singular"])), "we");
 
     $labels = array(
       "name" => $uc_singular,
@@ -72,16 +119,18 @@ class ModelHelper {
       "menu_name" => $uc_plural
     );
 
-    register_taxonomy(
-      $name["singular"],
-      $post_types,
-      array(
-        'hierarchical' => $hierarchical,
+    $options = array_merge(array(
+        'hierarchical' => true,
         'labels' => $labels,
         'show_ui' => true,
         'query_var' => true,
         'rewrite' => array('slug' => $name["plural"])
-      )
+      ), $options);
+
+    register_taxonomy(
+      $name["singular"],
+      $post_types,
+      $options
     );
 
   }
