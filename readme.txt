@@ -3,7 +3,7 @@ Contributors: welaika, stefano.verna
 Donate link: https://github.com/welaika/wordless
 Tags: sass, compass, haml, rails
 Requires at least: 3.0
-Tested up to: 3.4.2
+Tested up to: 3.2
 Stable tag: trunk
 
 Wordless dramatically speeds up and enhances your custom themes
@@ -20,7 +20,7 @@ Wordless is an opinionated WordPress plugin that dramatically speeds up and enha
 * Ability to write [Coffeescript](http://jashkenas.github.com/coffee-script/) instead of the boring, oldish Javascript;
 * A growing set of handy and documented helper functions ready to be used within your views;
 
-**Important**: You will always find the latest version of this plugin, as well as a more
+You can always find the latest version of this plugin, as well as a
 detailed README, on [Github](https://github.com/welaika/wordless).
 
 == Installation ==
