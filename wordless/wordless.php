@@ -212,7 +212,37 @@ class Wordless {
     }
   }
 
-  public static function theme_is_wordless_compatible() {
+  /**
+   * Checks for required directories when initializing theme. If any are missing, it will return false.
+   * If passed `true`, this function will return an array of missing directories.
+   *
+   * * @param boolean $return_array
+   *   Set true to get a list of missing directories
+   *
+   */
+  public static function theme_is_wordless_compatible($return_array = false) {
+    // Require wordless_preferences.php in case the user has changed the below paths.
+    $wordless_preferences_path = self::join_paths(self::theme_initializers_path(), "wordless_preferences.php");
+    if(file_exists($wordless_preferences_path)){
+      require_once $wordless_preferences_path;
+    }
+
+    $missing = self::get_theme_missing_directories();
+
+    if(!empty($missing)){
+      return ($return_array) ? $missing : false;
+    }
+
+    return true;    
+  }
+
+  /**
+  * Return directories missing. Empty array if nothing is missing.
+  */
+  public static function get_theme_missing_directories(){
+    $missing = array();
+
+    // Scan required directories.
     $required_directories = array(
       self::theme_helpers_path(),
       self::theme_initializers_path(),
@@ -223,12 +253,14 @@ class Wordless {
       self::theme_javascripts_path(),
       self::theme_temp_path()
     );
+
     foreach ($required_directories as $dir) {
       if (!file_exists($dir) || !is_dir($dir)) {
-        return false;
+        $missing[] = $dir;
       }
     }
-    return true;
+
+    return $missing;
   }
 
   public static function theme_helpers_path() {
