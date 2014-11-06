@@ -15,7 +15,20 @@ class WordlessPreprocessor {
   private $deprecated_preferences = array();
 
   public function __construct() {
+    $this->verify_timezone();
     $this->set_preference_default_value("assets.cache_enabled", true);
+  }
+
+  /* Verify setting on date.timezone in your php.ini
+   */
+
+  protected function verify_timezone(){
+    if(ini_get('date.timezone')){
+      date_default_timezone_set(ini_get('date.timezone'));
+    }
+    else{
+      date_default_timezone_set('UTC');
+    }
   }
 
   /**
@@ -279,7 +292,7 @@ class WordlessPreprocessor {
   protected function validate_executable_or_throw($path) {
     if (!is_executable($path)) {
       throw new WordlessCompileException(sprintf(
-        __("The path %s doesn't seem to be an executable!"),
+        __("The path %s doesn't seem to be an executable!", "wl"),
         $path
       ));
     }

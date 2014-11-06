@@ -1,7 +1,7 @@
 <?php 
 
 /**
- * This module implement Media interaction
+ * Implements media interaction; mostly images manipulation and 
  * 
  * @ingroup helperclass
  */
@@ -9,13 +9,18 @@
 class MediaHelper {
   
   /**
-   * This function include a PHP class (Mobile Detect - Version 2.5.2 - commit b5b8992dbe) to detect mobile devices and user agent details.
-   * To use it simply call the function detect_user_agent() in your view and then call one avaible method.
+   * Includes a PHP class to detect mobile devices and user agent details.
    * 
-   * @example
-   *   $detect->isMobile()
+   * \code{.php}
+   *  $detect = detect_user_agent()  
+   *  $detect->isMobile()
+   * \endcode
+   *
+   *  @return object
    * 
    * @see https://github.com/serbanghita/Mobile-Detect
+   * \note
+   *    Using Mobile Detect - Version 2.5.2 - commit b5b8992dbe
    * 
    * @ingroup helperfunc
    */
@@ -81,7 +86,7 @@ class MediaHelper {
   function resize_image($src, $width, $height){
     // initializing
     $save_path = Wordless::theme_temp_path();
-    $img_filename = $save_path . md5($width . 'x' . $height . '_' . basename($src)) . '.jpg';
+    $img_filename = Wordless::join_paths($save_path, md5($width . 'x' . $height . '_' . basename($src)) . '.jpg');
 
     // if file doesn't exists, create it
     if (!file_exists($img_filename)) {

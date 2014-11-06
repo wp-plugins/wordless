@@ -22,6 +22,7 @@ class Wordless {
         self::register_preprocessor_actions();
     }
     self::load_admin_page();
+    self::register_plugin_i18n();
   }
 
   public static function load_admin_page() {
@@ -45,7 +46,7 @@ class Wordless {
   }
 
   public static function register_preprocessors() {
-    $preprocessors = self::preference("assets.preprocessors", array("SprocketsPreprocessor", "CompassPreprocessor"));
+    $preprocessors = array_filter(self::preference("assets.preprocessors", array("SprocketsPreprocessor", "CompassPreprocessor")));
     foreach ($preprocessors as $preprocessor_class) {
       self::$preprocessors[] = new $preprocessor_class();
     }
@@ -58,6 +59,10 @@ class Wordless {
   public static function install() {
     self::assets_rewrite_rules();
     flush_rewrite_rules();
+  }
+
+  public static function register_plugin_i18n() {
+    add_action('init', array(__CLASS__, 'plugin_i18n'));
   }
 
   /**
@@ -128,7 +133,8 @@ class Wordless {
               echo "\n\n";
             }
 
-            file_put_contents($compiled_file_path, $compiled_content);
+            if (file_put_contents($compiled_file_path, $compiled_content) === false)
+              error_log("WARNING: Cannot write to {$compiled_file_path}.");
           }
         }
       }
@@ -182,10 +188,15 @@ class Wordless {
   }
 
   public static function load_i18n() {
-    $locales_path = self::theme_locales_path();
-    if (file_exists($locales_path) && is_dir($locales_path)) {
-      load_theme_textdomain('we', $locales_path);
+    $theme_locales_path = self::theme_locales_path();
+    if (file_exists($theme_locales_path) && is_dir($theme_locales_path)) {
+      load_theme_textdomain('wl', $theme_locales_path);
     }
+  }
+
+  public static function plugin_i18n() {
+    $plugin_locales_rel_path = self::join_paths('wordless', 'locales');
+    load_plugin_textdomain('wl', false, $plugin_locales_rel_path);
   }
 
   public static function require_helpers() {
@@ -233,7 +244,7 @@ class Wordless {
       return ($return_array) ? $missing : false;
     }
 
-    return true;    
+    return true;
   }
 
   /**
@@ -263,44 +274,48 @@ class Wordless {
     return $missing;
   }
 
+  public static function theme_path() {
+    return get_template_directory();
+  }
+
   public static function theme_helpers_path() {
-    return self::join_paths(get_template_directory(), 'theme/helpers');
+    return self::join_paths(self::theme_path(), 'theme/helpers');
   }
 
   public static function theme_initializers_path() {
-    return self::join_paths(get_template_directory(), 'config/initializers');
+    return self::join_paths(self::theme_path(), 'config/initializers');
   }
 
   public static function theme_locales_path() {
-    return self::join_paths(get_template_directory(), 'config/locales');
+    return self::join_paths(self::theme_path(), 'config/locales');
   }
 
   public static function theme_views_path() {
-    return self::join_paths(get_template_directory(), 'theme/views');
+    return self::join_paths(self::theme_path(), 'theme/views');
   }
 
   public static function theme_assets_path() {
-    return self::join_paths(get_template_directory(), 'theme/assets');
+    return self::join_paths(self::theme_path(), 'theme/assets');
   }
 
   public static function theme_stylesheets_path() {
-    return self::join_paths(get_template_directory(), 'theme/assets/stylesheets');
+    return self::join_paths(self::theme_path(), 'theme/assets/stylesheets');
   }
 
   public static function theme_javascripts_path() {
-    return self::join_paths(get_template_directory(), 'theme/assets/javascripts');
+    return self::join_paths(self::theme_path(), 'theme/assets/javascripts');
   }
 
   public static function theme_static_assets_path() {
-    return self::join_paths(get_template_directory(), 'assets');
+    return self::join_paths(self::theme_path(), 'assets');
   }
 
   public static function theme_static_javascripts_path() {
-    return self::join_paths(get_template_directory(), 'assets/javascripts');
+    return self::join_paths(self::theme_path(), 'assets/javascripts');
   }
 
   public static function theme_temp_path() {
-    return self::preference("theme.temp_dir", self::join_paths(get_template_directory(), 'tmp'));
+    return self::preference("theme.temp_dir", self::join_paths(self::theme_path(), 'tmp'));
   }
 
   public static function theme_url() {
